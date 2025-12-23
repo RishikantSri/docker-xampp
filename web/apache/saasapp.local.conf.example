@@ -1,0 +1,15 @@
+# Example: Serve a Laravel app from ./projects/saasapp/public at http://localhost/
+# If you use this, you can comment out (or delete) 000-default.conf.
+<VirtualHost *:80>
+    ServerName localhost
+    DocumentRoot /var/www/html/projects/saasapp/public
+
+    <Directory /var/www/html/projects/saasapp/public>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    ErrorLog ${APACHE_LOG_DIR}/saasapp-error.log
+    CustomLog ${APACHE_LOG_DIR}/saasapp-access.log combined
+</VirtualHost>

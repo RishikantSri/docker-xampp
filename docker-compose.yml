@@ -1,0 +1,90 @@
+version: "3.8"
+
+services:
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8000:8000"
+      - "8001:8001"
+    volumes:
+      - ./projects:/var/www/html
+      - ./web/apache:/etc/apache2/sites-enabled
+      - ./web/php/laravel.ini:/usr/local/etc/php/conf.d/laravel.ini:ro
+    depends_on:
+      - db
+    networks:
+      - xampp-net
+
+  db:
+    image: mysql:8.0
+    ports:
+      - "127.0.0.1:3306:3306"
+    environment:
+      # Local-only defaults. Change via .env (see .env.example).
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-app}
+      MYSQL_USER: ${MYSQL_USER:-laravel_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-secret}
+    volumes:
+      - db_data:/var/lib/mysql
+    restart: always
+    networks:
+      - xampp-net
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    ports:
+      - "127.0.0.1:8081:80"
+    environment:
+      PMA_HOST: db
+      UPLOAD_LIMIT: 512M
+    volumes:
+      - ./phpmyadmin/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:ro
+    depends_on:
+      - db
+    restart: always
+    networks:
+      - xampp-net
+
+  node:
+    image: node:22
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./projects:/var/www/html
+    command: ["tail", "-f", "/dev/null"]
+    networks:
+      - xampp-net
+
+  # Optional: enable when you actually have a Laravel project at ./projects/saasapp
+  # Run: docker compose --profile worker up -d
+  worker_mysaasapp:
+    profiles: ["worker"]
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    volumes:
+      - ./projects:/var/www/html
+      - ./web/apache:/etc/apache2/sites-enabled
+      - ./web/supervisor/supervisord.conf:/etc/supervisor/supervisord.conf:ro
+      - ./web/supervisor/laravel-worker-mysaasapp.conf:/etc/supervisor/conf.d/laravel-worker.conf:ro
+    environment:
+      APP_URL: http://localhost:8000
+      QUEUE_CONNECTION: database
+    depends_on:
+      - db
+    command: ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
+    restart: unless-stopped
+    networks:
+      - xampp-net
+
+volumes:
+  db_data:
+
+networks:
+  xampp-net:
+    driver: bridge
